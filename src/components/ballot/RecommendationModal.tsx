@@ -137,6 +137,68 @@ export function RecommendationContent({
   );
 }
 
+function RecommendationMobileContent({ data }: { data: RecommendationData }) {
+  const totalEndorsements = data.allEndorsers.length;
+
+  return (
+    <div className="flex flex-col gap-10 px-8 pb-16">
+      {/* Candidate info */}
+      <div className="flex flex-col gap-1 items-start w-full">
+        <p className="font-bold text-sm leading-5 text-[#403a49]">
+          {data.raceLabel} Candidate
+        </p>
+        <p className="font-bold text-2xl leading-8 text-[#403a49]">
+          {data.candidateName}
+        </p>
+      </div>
+
+      {/* Quote cards */}
+      <div className="flex flex-col gap-2.5 items-start w-full">
+        {data.quotes.map((q) => (
+          <div
+            key={q.name}
+            className="border border-[#e1dde9] flex flex-col gap-5 items-start p-6 rounded-2xl w-full overflow-hidden"
+          >
+            <p className="italic text-xs leading-5 text-[#403a49] w-full" style={{ fontFamily: "'Merriweather', serif" }}>
+              &ldquo;{q.quote}&rdquo;
+            </p>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex gap-2.5 items-center relative">
+                <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={q.avatar} alt={q.name} className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+                {q.verified && <VerifiedBadge />}
+                <p className="font-bold text-xs leading-5 text-[#403a49]">{q.name}</p>
+              </div>
+              <ChevronRight />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* All endorsements list */}
+      <div className="flex flex-col gap-5 items-start w-full">
+        <p className="font-bold text-sm leading-5 text-[#403a49]">
+          All {totalEndorsements} recommendations
+        </p>
+        <div className="flex flex-col gap-2.5 items-start w-full">
+          {data.allEndorsers.map((e) => (
+            <div key={e.name} className="flex gap-2.5 items-start w-full relative">
+              <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-[#e1dde9] relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={e.avatar} alt={e.name} className="absolute inset-0 w-full h-full object-cover rounded-full" />
+              </div>
+              {e.verified && <VerifiedBadge />}
+              <p className="flex-1 text-sm leading-5 text-[#403a49]">{e.name}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RecommendationModal({
   isOpen,
   onClose,
@@ -176,7 +238,7 @@ export default function RecommendationModal({
   if (isDesktop) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[60]">
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-250 ease-out ${
           show ? "opacity-100" : "opacity-0"
@@ -193,8 +255,18 @@ export default function RecommendationModal({
             : "top-[60px] opacity-0 translate-y-[40px]"
         }`}
       >
-        <div className="flex-1 overflow-y-auto flex flex-col bg-white">
-          <RecommendationContent onClose={onClose} data={data} />
+        {/* Fixed header */}
+        <div className="flex items-center justify-between px-8 py-6 bg-white z-10 shrink-0">
+          <p className="font-bold text-sm leading-5 text-[#403a49]">
+            {data.allEndorsers.length} Recommendations
+          </p>
+          <button type="button" onClick={onClose} className="cursor-pointer">
+            <CloseIcon />
+          </button>
+        </div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto flex flex-col bg-white hide-scrollbar">
+          <RecommendationMobileContent data={data} />
         </div>
       </div>
     </div>

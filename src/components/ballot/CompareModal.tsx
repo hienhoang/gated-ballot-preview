@@ -232,7 +232,7 @@ export default function CompareModal({
             : "top-[60px] opacity-0 translate-y-[40px]"
         }`}
       >
-        <div className="flex-1 overflow-y-auto flex flex-col">
+        <div className="flex-1 overflow-y-auto flex flex-col hide-scrollbar">
           <CompareContent
             onClose={onClose}
             raceTitle={raceTitle}
