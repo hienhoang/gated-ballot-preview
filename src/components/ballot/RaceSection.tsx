@@ -82,10 +82,10 @@ export default function RaceSection({
         if (compareActive) e.stopPropagation();
         onCompare?.();
       }}
-      className={`flex gap-1 items-center cursor-pointer transition-all ${
+      className={`flex gap-1 items-center cursor-pointer transition-all rounded-lg px-4 py-2 border ${
         compareActive
-          ? "bg-white rounded-lg px-4 py-2 border border-[#0d4dfb] relative z-[60] shadow-sm"
-          : ""
+          ? "bg-white border-[#0d4dfb] relative z-[60] shadow-sm"
+          : "border-transparent"
       }`}
     >
       <div className="w-4 h-4 overflow-hidden relative shrink-0">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { assets } from "./assets";
 import { useViewMode } from "../ViewModeContext";
@@ -164,6 +164,13 @@ export default function FullBallotView({ address }: { address: string }) {
   } | null>(null);
 
   const [recData, setRecData] = useState<RecommendationData | null>(null);
+  const drawerScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (drawerOpen && drawerScrollRef.current) {
+      drawerScrollRef.current.scrollTop = 0;
+    }
+  }, [drawerOpen, drawerSource]);
 
   const openCompare = (race: { title: string; roleDescription?: string; candidateCount: number; comparisonCandidates?: { name: string; photo: string; stance: string }[] }) => {
     if (!race.comparisonCandidates) return;
@@ -188,7 +195,7 @@ export default function FullBallotView({ address }: { address: string }) {
   if (isDesktop) {
     return (
       <>
-        <div className="flex w-full min-h-screen">
+        <div className="flex w-full" style={{ minHeight: "calc(100vh - var(--toolbar-h))" }}>
           <div className={`flex-1 min-w-0 bg-white flex flex-col gap-8 items-start mx-auto overflow-y-auto relative ${
             drawerOpen ? "max-w-[1800px]" : "max-w-[1280px]"
           }`}>
@@ -210,10 +217,10 @@ export default function FullBallotView({ address }: { address: string }) {
           </div>
 
           <div
-            className="shrink-0 h-screen sticky top-0 overflow-hidden transition-[width] duration-300 ease-in-out z-50"
-            style={{ width: drawerOpen ? "min(30vw, 600px)" : 0 }}
+            className="shrink-0 sticky overflow-hidden transition-[width] duration-300 ease-in-out z-50 bg-white"
+            style={{ top: "var(--toolbar-h)", height: "calc(100vh - var(--toolbar-h))", width: drawerOpen ? "min(30vw, 600px)" : 0 }}
           >
-            <div className="h-full overflow-y-auto bg-white" style={{ width: "min(30vw, 600px)" }}>
+            <div ref={drawerScrollRef} className="h-full overflow-y-auto bg-white flex flex-col" style={{ width: "min(30vw, 600px)" }}>
               {drawerSource === "compare" && compareRace && (
                 <CompareModal
                   isOpen={drawerOpen && drawerSource === "compare"}

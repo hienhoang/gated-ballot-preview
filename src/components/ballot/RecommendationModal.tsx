@@ -228,7 +228,7 @@ export default function RecommendationModal({
 
   if (inline) {
     return (
-      <div className="flex flex-col min-h-full h-full bg-white border-l border-[#e8e5ed]">
+      <div className="flex flex-col flex-1 min-h-full bg-white border-l border-[#e8e5ed]">
         <RecommendationContent onClose={onClose} data={data} />
       </div>
     );

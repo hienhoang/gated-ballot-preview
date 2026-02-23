@@ -24,7 +24,7 @@ function LoadingContent() {
   const overlayHeight = isDesktop ? "min-h-screen" : "h-[846px]";
 
   return (
-    <div className="bg-white flex justify-center min-h-screen">
+    <div className="bg-white flex justify-center" style={{ minHeight: "calc(100vh - var(--toolbar-h))" }}>
       <div className={`${containerWidth} min-h-[846px] bg-white relative overflow-hidden`}>
         {/* Background ballot preview at 50% opacity */}
         <div className={`absolute top-0 left-0 ${skeletonWidth} opacity-50`}>

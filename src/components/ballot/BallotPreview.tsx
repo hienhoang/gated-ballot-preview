@@ -54,7 +54,7 @@ function HeroSection({ triggerRef, selectedAddress, onOpenModal, isDesktop }: He
           </div>
         </div>
         <div className="flex flex-col gap-2.5 items-center px-8 w-full">
-          <p className="text-xs leading-5 text-[#403a49]">
+          <p className={`leading-5 text-[#403a49] ${isDesktop ? "text-sm" : "text-xs"}`}>
             <span className="font-bold">Primary Election</span>
             <span className="text-[rgba(64,58,73,0.4)]"> | </span>
             <span className="font-bold"> March 3, 2026</span>
@@ -129,6 +129,8 @@ interface BallotFiltersProps {
 }
 
 export function BallotFilters({ activeFilter, onFilterChange }: BallotFiltersProps) {
+  const { viewMode } = useViewMode();
+  const isDesktop = viewMode === "desktop";
   const filters: { key: FilterKey; label: string }[] = [
     { key: "senate", label: "Senate" },
     { key: "house", label: "House" },
@@ -139,7 +141,7 @@ export function BallotFilters({ activeFilter, onFilterChange }: BallotFiltersPro
   return (
     <div className="flex flex-col gap-3 items-start pl-8 w-full overflow-hidden">
       <div className="flex items-start justify-between pr-8 w-full">
-        <p className="font-bold text-xs leading-5 text-[#403a49]">
+        <p className={`font-bold leading-5 text-[#403a49] ${isDesktop ? "text-sm" : "text-xs"}`}>
           Filter Ballot
         </p>
         <button
@@ -755,7 +757,7 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
             />
             <div
               className={`flex flex-col gap-10 items-start overflow-hidden pl-8 pr-8 w-full transition-all duration-300 ${
-                isOpen ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0"
+                isOpen ? "max-h-[9999px] opacity-100 pb-5" : "max-h-0 opacity-0"
               }`}
             >
               {sectionRaces.map((race) => (
@@ -898,7 +900,7 @@ export function VoterGuides() {
 
   if (isDesktop) {
     return (
-      <div className="flex flex-col gap-8 items-start w-full border-t border-[#e1dde9] pt-20 mt-8">
+      <div className="flex flex-col gap-8 items-start w-full border-t border-[#e1dde9] pt-[60px]">
         <div className="flex items-end justify-between w-full px-8">
           <div className="flex flex-col gap-2 items-start">
             <p className="font-bold text-lg leading-6 text-[#403a49]">
@@ -913,7 +915,7 @@ export function VoterGuides() {
             See all
           </p>
         </div>
-        <div className="flex gap-5 items-start w-full px-8">
+        <div className="flex gap-5 items-stretch w-full px-8">
           {guides.map((guide) => (
             <div
               key={guide.name}
@@ -1000,11 +1002,11 @@ export function ShareCTA() {
     return (
       <div className="w-full px-8">
         <div className="bg-[#0d4dfb] flex overflow-hidden rounded-2xl h-[346px] w-full">
-          {/* Text — 30% */}
-          <div className="w-[30%] shrink-0 flex flex-col gap-5 items-start justify-center pl-[60px] py-[60px]">
+          {/* Text */}
+          <div className="flex-1 shrink-0 flex flex-col gap-5 items-start justify-center px-[60px] py-[60px]">
             <div className="flex flex-col gap-2.5 items-start w-full text-white">
-              <p className="font-bold text-[28px] leading-9 tracking-[-1px]">
-                Help a friend<br />not guess
+              <p className="font-bold text-[28px] leading-9 tracking-[-1px] whitespace-nowrap">
+                Help a friend not guess
               </p>
               <p className="font-normal text-base leading-6 w-full">
                 Every voter who shows up makes a difference. Share this so more
@@ -1031,8 +1033,8 @@ export function ShareCTA() {
               </p>
             </button>
           </div>
-          {/* Image — 70%, with 60px top/left/right margin, rounded top corners only */}
-          <div className="flex-1 pt-[60px] pr-[60px] pl-[60px]">
+          {/* Image — fills remaining space */}
+          <div className="w-[45%] shrink-0 pt-[60px] pr-[60px]">
             <div className="w-full h-full overflow-hidden rounded-tl-2xl rounded-tr-2xl">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -1138,7 +1140,7 @@ export function Footer() {
           <div className="min-w-[400px] flex-1 border-b border-[#a5b9ff] flex items-start gap-5" style={{ borderRight: "1px solid #a5b9ff" }}>
             <div className="w-[108px] self-stretch overflow-hidden relative shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={assets.votingBooth} alt="" className="absolute left-[-20px] top-1/2 -translate-y-1/2 w-[150px] h-[150px] object-contain" />
+              <img src={assets.votingBooth} alt="" className="absolute inset-0 w-full h-full object-cover" />
             </div>
             <div className="flex flex-1 flex-wrap gap-x-8 gap-y-4 items-start pr-8 py-10">
               <p className="font-bold text-2xl leading-8 text-[#403a49] min-w-[160px] max-w-[200px]">
@@ -1168,19 +1170,19 @@ export function Footer() {
                 <EmailInput />
               </div>
             </div>
-            <div className="w-[108px] h-[200px] overflow-hidden relative shrink-0">
+            <div className="w-[108px] self-stretch overflow-hidden relative shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={assets.iVotedStickers}
                 alt=""
-                className="absolute left-[-15px] top-1/2 -translate-y-1/2 w-[150px] h-[150px] object-contain"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
           </div>
         </div>
 
         {/* Copyright bar */}
-        <div className="border-t border-[#a5b9ff] flex flex-wrap items-center justify-between gap-6 px-8 py-10 w-full">
+        <div className="flex flex-wrap items-center justify-between gap-6 px-8 py-10 w-full">
           <p className="text-sm leading-normal text-[#403a49] max-w-[320px]">
             © 2025. Change.org Vote is a non-profit owned PBC operated by
             Change.org. All rights reserved.
@@ -1302,6 +1304,7 @@ export default function BallotPreview() {
   const heroTriggerRef = useRef<HTMLButtonElement>(null);
   const ctaTriggerRef = useRef<HTMLButtonElement>(null);
   const activeTriggerRef = useRef<React.RefObject<HTMLElement | null>>(heroTriggerRef);
+  const drawerScrollRef = useRef<HTMLDivElement>(null);
 
   const [addressDrawerMounted, setAddressDrawerMounted] = useState(false);
 
@@ -1328,6 +1331,12 @@ export default function BallotPreview() {
     setDrawerOpen(false);
     setPreviewAddress("");
   };
+
+  React.useEffect(() => {
+    if (drawerOpen && drawerScrollRef.current) {
+      drawerScrollRef.current.scrollTop = 0;
+    }
+  }, [drawerOpen, drawerSource]);
 
   React.useEffect(() => {
     if (!isDesktop) return;
@@ -1357,23 +1366,27 @@ export default function BallotPreview() {
 
   if (isDesktop) {
     return (
-      <div className="flex w-full min-h-screen">
+      <div className="flex w-full" style={{ minHeight: "calc(100vh - var(--toolbar-h))" }}>
         {/* Left column — ballot content (shrinks when drawer opens) */}
-        <div className="flex-1 min-w-0 bg-white flex flex-col gap-8 items-start overflow-y-auto relative max-w-[1800px] mx-auto">
+        <div className="flex-1 min-w-0 bg-white flex flex-col gap-[60px] items-start overflow-y-auto relative max-w-[1800px] mx-auto">
           <HeroSection
             triggerRef={heroTriggerRef}
             selectedAddress={displayAddress}
             onOpenModal={() => openAddressDrawer(heroTriggerRef)}
             isDesktop
           />
-          <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+          <div className="-mt-5 -mb-5 w-full">
+            <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+          </div>
           <AllRaces activeFilter={activeFilter} onCompare={openCompareDrawer} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
           <AddLocationCTA
             triggerRef={ctaTriggerRef}
             selectedAddress={displayAddress}
             onOpenModal={() => openAddressDrawer(ctaTriggerRef)}
           />
-          <SourceDisclaimer />
+          <div className="-mt-5 w-full">
+            <SourceDisclaimer />
+          </div>
           <VoterGuides />
           <ShareCTA />
           <Footer />
@@ -1389,10 +1402,10 @@ export default function BallotPreview() {
 
         {/* Right drawer — min(30vw, 600px), pushes content left */}
         <div
-          className="shrink-0 h-screen sticky top-0 overflow-hidden transition-[width] duration-300 ease-in-out z-50"
-          style={{ width: drawerOpen ? "min(30vw, 600px)" : 0 }}
+          className="shrink-0 sticky overflow-hidden transition-[width] duration-300 ease-in-out z-50 bg-white"
+          style={{ top: "var(--toolbar-h)", height: "calc(100vh - var(--toolbar-h))", width: drawerOpen ? "min(30vw, 600px)" : 0 }}
         >
-          <div className="h-full overflow-y-auto bg-white" style={{ width: "min(30vw, 600px)" }}>
+          <div ref={drawerScrollRef} className="h-full overflow-y-auto bg-white flex flex-col" style={{ width: "min(30vw, 600px)" }}>
             {drawerSource === "address" && addressDrawerMounted && (
               <AddressSearchModal
                 isOpen={drawerOpen && drawerSource === "address"}

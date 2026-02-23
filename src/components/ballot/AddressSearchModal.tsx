@@ -223,6 +223,17 @@ function AddressSearchModalInner({
   }, [query, placesLib]);
 
   // ------- Phase state machine -------
+  // Re-center map after the drawer width transition completes (desktop inline)
+  useEffect(() => {
+    if (!inline || !isOpen || !map) return;
+    const timer = setTimeout(() => {
+      map.setCenter(FORT_WORTH_CENTER);
+      map.setZoom(12);
+      google.maps.event.trigger(map, "resize");
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [inline, isOpen, map]);
+
   useEffect(() => {
     if (inline) {
       // Inline mode: reset state when opened/closed, but skip phase animation
@@ -554,26 +565,25 @@ function AddressSearchModalInner({
           </div>
         )}
 
-        {/* "See full ballot" button */}
+        {/* "Find ballot" button bar */}
         <div
-          className={`absolute bottom-0 left-0 right-0 z-20 bg-white px-4 pt-3 pb-4 transition-transform duration-300 ease-out ${
+          className={`absolute bottom-0 left-0 right-0 z-20 flex items-center justify-end px-6 pt-16 pb-5 transition-transform duration-300 ease-out ${
             showBottomBar ? "translate-y-0" : "translate-y-full"
           }`}
+          style={{ background: "linear-gradient(to top, white 55%, rgba(255,255,255,0.9) 70%, rgba(255,255,255,0.6) 82%, rgba(255,255,255,0.2) 92%, transparent 100%)" }}
           aria-hidden={!showBottomBar}
         >
-          <p className="text-[11px] leading-4 text-center text-[rgba(64,58,73,0.6)] mb-2">
-            {`By clicking \u201CSee full ballot,\u201D you agree to the `}
-            <a href="#" className="underline">Terms of Service</a>
-            {` and `}
-            <a href="#" className="underline">Privacy Policy</a>.
-          </p>
           <button
             type="button"
             onClick={handleConfirm}
             tabIndex={showBottomBar ? 0 : -1}
-            className="w-full py-3 rounded-lg bg-[#F5C518] text-[#403a49] font-bold text-base leading-6 cursor-pointer hover:bg-[#e6b800] transition-colors focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2"
+            className="flex gap-2.5 items-center justify-center px-4 py-3 rounded-lg bg-gradient-to-r from-[#ffdb00] to-[#ffe600] text-[#403a49] font-bold text-base leading-6 cursor-pointer hover:from-[#e6b800] hover:to-[#e6b800] transition-colors focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2"
           >
-            See full ballot
+            Find ballot
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#403A49" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
         </div>
       </div>

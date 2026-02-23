@@ -10,8 +10,8 @@ export default function Providers({
 }) {
   return (
     <ViewModeProvider>
-      {children}
       <ViewSwitcher />
+      {children}
     </ViewModeProvider>
   );
 }

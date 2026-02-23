@@ -9,7 +9,7 @@ function BallotContent() {
   const address = searchParams.get("address") || "";
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="bg-gray-100" style={{ minHeight: "calc(100vh - var(--toolbar-h))" }}>
       <FullBallotView address={address} />
     </main>
   );

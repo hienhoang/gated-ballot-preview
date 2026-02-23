@@ -18,7 +18,7 @@ export default function SectionHeader({ label, isOpen, onToggle }: SectionHeader
       onClick={onToggle}
       className={`border-t border-[#e1dde9] flex items-center justify-between pl-8 w-full cursor-pointer ${isDesktop ? "pr-8" : "pr-4"}`}
     >
-      <p className="font-bold text-xs leading-5 text-[#403a49]">{label}</p>
+      <p className={`font-bold leading-5 text-[#403a49] ${isDesktop ? "text-sm" : "text-xs"}`}>{label}</p>
       <div className="flex items-center p-2.5">
         <svg
           width="24"
