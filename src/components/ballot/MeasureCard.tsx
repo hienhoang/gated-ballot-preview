@@ -20,8 +20,8 @@ export default function MeasureCard({
   const isYes = position === "Yes";
 
   return (
-    <div className="bg-[#f9fafb] flex flex-col items-start min-w-[181px] max-w-[370px] w-[316px] rounded-2xl overflow-hidden shrink-0">
-      <div className="flex flex-col gap-5 items-start p-6 w-full">
+    <div className="bg-[#f9fafb] flex flex-col rounded-2xl overflow-hidden min-w-[181px] max-w-[370px] w-[316px] shrink-0 self-stretch">
+      <div className="flex flex-col gap-5 items-start p-6 w-full flex-1">
         <div className="flex gap-5 items-start w-full">
           <div
             className={`w-[68px] h-[68px] rounded-[12.96px] flex flex-col items-center px-4 py-2.5 shrink-0 ${
@@ -53,22 +53,30 @@ export default function MeasureCard({
         </div>
         <p className="text-sm leading-5 text-[#403a49] w-full">{description}</p>
       </div>
-      <div className="border-t border-[#e1dde9] flex gap-2.5 items-start px-6 py-5 w-full relative">
-        <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-[#e1dde9] relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={endorserImage}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover rounded-full"
-          />
-        </div>
-        <div className="absolute w-3 h-3 bg-[#1aa11c] rounded-full p-0.5 left-[42px] top-[31px]">
-          <div className="w-[9px] h-[9px] overflow-hidden rounded-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={assets.checkGreen} alt="" className="w-full h-full" />
-          </div>
-        </div>
-        <p className="text-xs leading-5 text-[#766f81]">{endorsementText}</p>
+      <div className="border-t border-[#e1dde9] flex gap-2.5 items-center px-6 py-5 w-full h-[64px] shrink-0 overflow-hidden">
+        {endorserImage ? (
+          <>
+            <div className="flex items-center shrink-0 relative pr-1">
+              <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-[#e1dde9] relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={endorserImage}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover rounded-full"
+                />
+              </div>
+              <div className="absolute w-3 h-3 bg-[#1aa11c] rounded-full p-0.5 -right-0.5 bottom-0 z-10">
+                <div className="w-[9px] h-[9px] overflow-hidden rounded-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={assets.checkGreen} alt="" className="w-full h-full" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs leading-5 text-[#766f81] truncate min-w-0">{endorsementText}</p>
+          </>
+        ) : (
+          <p className="text-xs leading-5 text-[#766f81]">No recommendations yet.</p>
+        )}
       </div>
     </div>
   );

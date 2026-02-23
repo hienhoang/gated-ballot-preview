@@ -7,7 +7,7 @@ import {
   useCallback,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -77,13 +77,28 @@ interface AddressSearchModalProps {
   onClose: () => void;
   onSelect: (address: string) => void;
   triggerRef: React.RefObject<HTMLElement | null>;
+  inline?: boolean;
 }
 
-export default function AddressSearchModal({
+export default function AddressSearchModal(props: AddressSearchModalProps) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  return (
+    <APIProvider
+      apiKey={apiKey}
+      libraries={["places"]}
+      authReferrerPolicy="origin"
+    >
+      <AddressSearchModalInner {...props} />
+    </APIProvider>
+  );
+}
+
+function AddressSearchModalInner({
   isOpen,
   onClose,
   onSelect,
   triggerRef,
+  inline = false,
 }: AddressSearchModalProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -106,18 +121,14 @@ export default function AddressSearchModal({
   const placesLib = useMapsLibrary("places");
   const geocodingLib = useMapsLibrary("geocoding");
 
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
   useEffect(() => {
-    if (placesLib && !autocompleteServiceRef.current) {
-      autocompleteServiceRef.current = new placesLib.AutocompleteService();
+    if (placesLib && !sessionTokenRef.current) {
+      sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
     }
-    if (placesLib && map && !placesServiceRef.current) {
-      placesServiceRef.current = new placesLib.PlacesService(map);
-    }
-  }, [placesLib, map]);
+  }, [placesLib]);
 
   useEffect(() => {
     if (geocodingLib && !geocoderRef.current) {
@@ -161,7 +172,7 @@ export default function AddressSearchModal({
     return () => observer.disconnect();
   }, [showBottomBar]);
 
-  // ------- Autocomplete predictions -------
+  // ------- Autocomplete predictions (new API) -------
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -170,47 +181,70 @@ export default function AddressSearchModal({
       return;
     }
 
-    if (!query || query.length < 2 || !autocompleteServiceRef.current) {
+    if (!query || query.length < 2 || !placesLib) {
       setPredictions([]);
       setActiveIndex(-1);
       return;
     }
 
-    debounceRef.current = setTimeout(() => {
-      autocompleteServiceRef.current!.getPlacePredictions(
-        {
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const request: google.maps.places.AutocompleteRequest = {
           input: query,
           locationBias: {
             center: FORT_WORTH_CENTER,
             radius: 50000,
           } as google.maps.places.LocationBias,
-        },
-        (results, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            results
-          ) {
-            setPredictions(
-              results.map((r) => ({
-                placeId: r.place_id,
-                text: r.description,
-              }))
-            );
-          } else {
-            setPredictions([]);
-          }
-          setActiveIndex(-1);
-        }
-      );
+          sessionToken: sessionTokenRef.current ?? undefined,
+        };
+
+        const { suggestions } =
+          await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+
+        setPredictions(
+          suggestions
+            .filter((s) => s.placePrediction)
+            .map((s) => ({
+              placeId: s.placePrediction!.placeId,
+              text: s.placePrediction!.text.text,
+            }))
+        );
+      } catch {
+        setPredictions([]);
+      }
+      setActiveIndex(-1);
     }, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, placesLib]);
 
   // ------- Phase state machine -------
   useEffect(() => {
+    if (inline) {
+      // Inline mode: reset state when opened/closed, but skip phase animation
+      if (isOpen) {
+        setMarkerPos(FORT_WORTH_CENTER);
+        setMapKey((k) => k + 1);
+        setQuery("");
+        setPredictions([]);
+        setActiveIndex(-1);
+        setAddressConfirmed(false);
+        setPhase("open");
+        setTimeout(() => inputRef.current?.focus(), 100);
+      } else {
+        setPhase("open"); // Keep "open" so content stays rendered inside the 0-width wrapper
+        setQuery("");
+        setPredictions([]);
+        setActiveIndex(-1);
+        setMarkerPos(FORT_WORTH_CENTER);
+        setInputFocused(false);
+        setAddressConfirmed(false);
+      }
+      return;
+    }
+
     if (isOpen && (phase === "closed" || phase === "leaving")) {
       if (leaveTimerRef.current) {
         clearTimeout(leaveTimerRef.current);
@@ -241,7 +275,7 @@ export default function AddressSearchModal({
         triggerRef.current?.focus();
       }, 250);
     }
-  }, [isOpen, phase, triggerRef]);
+  }, [isOpen, phase, triggerRef, inline]);
 
   useEffect(() => {
     return () => {
@@ -258,42 +292,42 @@ export default function AddressSearchModal({
   }, [query, onSelect, onClose, router]);
 
   const handleSelect = useCallback(
-    (prediction: Prediction) => {
-      if (!placesServiceRef.current) {
+    async (prediction: Prediction) => {
+      try {
+        const place = new google.maps.places.Place({ id: prediction.placeId });
+        await place.fetchFields({
+          fields: ["location", "formattedAddress"],
+        });
+
+        if (place.location) {
+          const pos = {
+            lat: place.location.lat(),
+            lng: place.location.lng(),
+          };
+          setMarkerPos(pos);
+          map?.panTo(pos);
+          map?.setZoom(15);
+          const addr = place.formattedAddress || prediction.text;
+          skipAutocompleteRef.current = true;
+          setQuery(addr);
+        } else {
+          skipAutocompleteRef.current = true;
+          setQuery(prediction.text);
+        }
+      } catch {
         skipAutocompleteRef.current = true;
         setQuery(prediction.text);
-        setPredictions([]);
-        setAddressConfirmed(true);
-        return;
       }
 
-      placesServiceRef.current.getDetails(
-        { placeId: prediction.placeId, fields: ["geometry", "formatted_address"] },
-        (place, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            place?.geometry?.location
-          ) {
-            const pos = {
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            };
-            setMarkerPos(pos);
-            map?.panTo(pos);
-            map?.setZoom(15);
-            const addr = place.formatted_address || prediction.text;
-            skipAutocompleteRef.current = true;
-            setQuery(addr);
-          } else {
-            skipAutocompleteRef.current = true;
-            setQuery(prediction.text);
-          }
-          setPredictions([]);
-          setAddressConfirmed(true);
-        }
-      );
+      setPredictions([]);
+      setAddressConfirmed(true);
+
+      // Reset session token after selection (per Google best practices)
+      if (placesLib) {
+        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+      }
     },
-    [map]
+    [map, placesLib]
   );
 
   const handleMapClick = useCallback(
@@ -374,13 +408,187 @@ export default function AddressSearchModal({
     }
   }, [activeIndex]);
 
-  if (phase === "closed") return null;
+  if (!inline && phase === "closed") return null;
 
   const show = phase === "open";
 
+  // Shared content panel (used by both inline and modal)
+  const panelContent = (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 shrink-0 bg-white border-b border-[#e8e5ed]">
+        <p className="font-bold text-sm leading-5 text-[#403a49]">
+          Get full ballot
+        </p>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="p-0 cursor-pointer focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2 rounded"
+          aria-label="Close address search"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+
+      {/* Content area — map flush to header, search bar floats over it */}
+      <div className="flex-1 min-h-0 relative">
+        {/* Map */}
+        <div ref={mapContainerRef} className="absolute inset-0 z-0">
+          <Map
+            key={mapKey}
+            id="address-map"
+            defaultCenter={FORT_WORTH_CENTER}
+            defaultZoom={12}
+            gestureHandling="greedy"
+            disableDefaultUI
+            zoomControl
+            mapTypeControl={false}
+            streetViewControl={false}
+            fullscreenControl={false}
+            onClick={handleMapClick}
+            mapId="address-search-map"
+            style={{ width: "100%", height: "100%" }}
+          >
+            <AdvancedMarker position={markerPos} />
+          </Map>
+        </div>
+
+        {/* Search input — floats over the map */}
+        <div className="absolute top-3 left-4 right-4 z-20">
+          <div
+            className={`relative rounded-lg w-full ${
+              inputFocused ? "shadow-[0_0_0_4px_rgba(13,77,251,0.2)]" : "shadow-sm"
+            }`}
+          >
+            <div className={`bg-white flex gap-2 items-center px-3 py-2.5 rounded-lg w-full border ${
+              inputFocused ? "border-[#0d4dfb]" : "border-[#766f81]"
+            }`}>
+              <label htmlFor="address-search-input" className="sr-only">
+                Search address
+              </label>
+              <SearchIcon />
+              <input
+                ref={inputRef}
+                id="address-search-input"
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                placeholder="Search address or location"
+                className="flex-1 text-[15px] leading-5 text-[#403a49] placeholder:text-[rgba(64,58,73,0.35)] outline-none bg-transparent"
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={predictions.length > 0}
+                aria-controls="address-suggestions-list"
+                aria-activedescendant={
+                  activeIndex >= 0 ? `suggestion-${predictions[activeIndex]?.placeId}` : undefined
+                }
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setPredictions([]);
+                    setAddressConfirmed(false);
+                    inputRef.current?.focus();
+                  }}
+                  className="cursor-pointer rounded"
+                  aria-label="Clear search"
+                >
+                  <ClearIcon />
+                </button>
+              ) : (
+                <div className="w-5 h-5 shrink-0" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Suggestions overlay */}
+        {predictions.length > 0 && (
+          <div
+            className="absolute inset-0 z-10 bg-white overflow-y-auto pt-14"
+            aria-live="polite"
+          >
+            <ul
+              ref={listRef}
+              id="address-suggestions-list"
+              role="listbox"
+              aria-label="Address suggestions"
+              className="flex flex-col"
+            >
+              {predictions.map((prediction, index) => (
+                <li
+                  key={prediction.placeId}
+                  id={`suggestion-${prediction.placeId}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  onClick={() => handleSelect(prediction)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`flex gap-3 items-center px-6 py-3.5 cursor-pointer border-b border-[#e8e5ed] transition-colors ${
+                    index === activeIndex ? "bg-[#f5f3f7]" : "bg-white"
+                  } focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-[-2px]`}
+                  tabIndex={-1}
+                >
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    <LocationIcon />
+                  </div>
+                  <p className="flex-1 text-sm leading-5 text-[#403a49] truncate">
+                    {prediction.text}
+                  </p>
+                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                    <ArrowOutwardIcon />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* "See full ballot" button */}
+        <div
+          className={`absolute bottom-0 left-0 right-0 z-20 bg-white px-4 pt-3 pb-4 transition-transform duration-300 ease-out ${
+            showBottomBar ? "translate-y-0" : "translate-y-full"
+          }`}
+          aria-hidden={!showBottomBar}
+        >
+          <p className="text-[11px] leading-4 text-center text-[rgba(64,58,73,0.6)] mb-2">
+            {`By clicking \u201CSee full ballot,\u201D you agree to the `}
+            <a href="#" className="underline">Terms of Service</a>
+            {` and `}
+            <a href="#" className="underline">Privacy Policy</a>.
+          </p>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            tabIndex={showBottomBar ? 0 : -1}
+            className="w-full py-3 rounded-lg bg-[#F5C518] text-[#403a49] font-bold text-base leading-6 cursor-pointer hover:bg-[#e6b800] transition-colors focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2"
+          >
+            See full ballot
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  // --- Inline mode (desktop side panel) ---
+  if (inline) {
+    return (
+      <div
+        ref={modalRef}
+        className="flex flex-col h-full bg-white border-l border-[#e8e5ed]"
+        aria-label="Address search"
+      >
+        {panelContent}
+      </div>
+    );
+  }
+
+  // --- Modal mode (mobile) ---
   return (
     <div className="fixed inset-0 z-50" aria-hidden={!isOpen}>
-      {/* Overlay */}
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-250 ease-out ${
           show ? "opacity-100" : "opacity-0"
@@ -388,8 +596,6 @@ export default function AddressSearchModal({
         onClick={handleClose}
         aria-hidden="true"
       />
-
-      {/* Modal — simple slide up from bottom */}
       <div
         ref={modalRef}
         role="dialog"
@@ -401,161 +607,7 @@ export default function AddressSearchModal({
             : "top-[60px] opacity-0 translate-y-[40px]"
         }`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 bg-white border-b border-[#e8e5ed]">
-          <p className="font-bold text-sm leading-5 text-[#403a49]">
-            Get full ballot
-          </p>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-0 cursor-pointer focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2 rounded"
-            aria-label="Close address search"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        {/* Content area — map flush to header, search bar floats over it */}
-        <div className="flex-1 min-h-0 relative">
-          {/* Map — flush to top (right below header), always present */}
-          <div ref={mapContainerRef} className="absolute inset-0 z-0">
-            <Map
-              key={mapKey}
-              id="address-map"
-              defaultCenter={FORT_WORTH_CENTER}
-              defaultZoom={12}
-              gestureHandling="greedy"
-              disableDefaultUI
-              zoomControl
-              mapTypeControl={false}
-              streetViewControl={false}
-              fullscreenControl={false}
-              onClick={handleMapClick}
-              mapId="address-search-map"
-              style={{ width: "100%", height: "100%" }}
-            >
-              <AdvancedMarker position={markerPos} />
-            </Map>
-          </div>
-
-          {/* Search input — floats over the map */}
-          <div className="absolute top-3 left-4 right-4 z-20">
-            <div
-              className={`relative rounded-lg w-full ${
-                inputFocused ? "shadow-[0_0_0_4px_rgba(13,77,251,0.2)]" : "shadow-sm"
-              }`}
-            >
-              <div className={`bg-white flex gap-2 items-center px-3 py-2.5 rounded-lg w-full border ${
-                inputFocused ? "border-[#0d4dfb]" : "border-[#766f81]"
-              }`}>
-                <label htmlFor="address-search-input" className="sr-only">
-                  Search address
-                </label>
-                <SearchIcon />
-                <input
-                  ref={inputRef}
-                  id="address-search-input"
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder="Search address or location"
-                  className="flex-1 text-[15px] leading-5 text-[#403a49] placeholder:text-[rgba(64,58,73,0.35)] outline-none bg-transparent"
-                  autoComplete="off"
-                  role="combobox"
-                  aria-expanded={predictions.length > 0}
-                  aria-controls="address-suggestions-list"
-                  aria-activedescendant={
-                    activeIndex >= 0 ? `suggestion-${predictions[activeIndex]?.placeId}` : undefined
-                  }
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery("");
-                      setPredictions([]);
-                      setAddressConfirmed(false);
-                      inputRef.current?.focus();
-                    }}
-                    className="cursor-pointer rounded"
-                    aria-label="Clear search"
-                  >
-                    <ClearIcon />
-                  </button>
-                ) : (
-                  <div className="w-5 h-5 shrink-0" />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Suggestions — full-bleed white overlay from below the search bar to the bottom */}
-          {predictions.length > 0 && (
-            <div
-              className="absolute inset-0 z-10 bg-white overflow-y-auto pt-14"
-              aria-live="polite"
-            >
-              <ul
-                ref={listRef}
-                id="address-suggestions-list"
-                role="listbox"
-                aria-label="Address suggestions"
-                className="flex flex-col"
-              >
-                {predictions.map((prediction, index) => (
-                  <li
-                    key={prediction.placeId}
-                    id={`suggestion-${prediction.placeId}`}
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    onClick={() => handleSelect(prediction)}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    className={`flex gap-3 items-center px-6 py-3.5 cursor-pointer border-b border-[#e8e5ed] transition-colors ${
-                      index === activeIndex ? "bg-[#f5f3f7]" : "bg-white"
-                    } focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-[-2px]`}
-                    tabIndex={-1}
-                  >
-                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                      <LocationIcon />
-                    </div>
-                    <p className="flex-1 text-sm leading-5 text-[#403a49] truncate">
-                      {prediction.text}
-                    </p>
-                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                      <ArrowOutwardIcon />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* "See full ballot" button — slides up from the bottom */}
-          <div
-            className={`absolute bottom-0 left-0 right-0 z-20 bg-white px-4 pt-3 pb-4 transition-transform duration-300 ease-out ${
-              showBottomBar ? "translate-y-0" : "translate-y-full"
-            }`}
-            aria-hidden={!showBottomBar}
-          >
-            <p className="text-[11px] leading-4 text-center text-[rgba(64,58,73,0.6)] mb-2">
-              {`By clicking \u201CSee full ballot,\u201D you agree to the `}
-              <a href="#" className="underline">Terms of Service</a>
-              {` and `}
-              <a href="#" className="underline">Privacy Policy</a>.
-            </p>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              tabIndex={showBottomBar ? 0 : -1}
-              className="w-full py-3 rounded-lg bg-[#F5C518] text-[#403a49] font-bold text-base leading-6 cursor-pointer hover:bg-[#e6b800] transition-colors focus:outline-2 focus:outline-[#0d4dfb] focus:outline-offset-2"
-            >
-              See full ballot
-            </button>
-          </div>
-        </div>
+        {panelContent}
       </div>
     </div>
   );
