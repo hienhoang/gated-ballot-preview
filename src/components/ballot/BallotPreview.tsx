@@ -121,73 +121,227 @@ function HeroSection({ triggerRef, selectedAddress, onOpenModal, isDesktop }: He
   );
 }
 
-export type FilterKey = "all" | "senate" | "house" | "governor" | "lt_governor";
+export type RaceFilterKey = "senate" | "house" | "governor" | "lt_governor";
+export type FilterKey = "all" | RaceFilterKey;
+export type PartyFilter = "all" | "democrat" | "republican";
+
+const PARTY_OPTIONS: { key: PartyFilter; label: string; iconSrc: string; iconW: number; iconH: number }[] = [
+  { key: "all", label: "All Primaries", iconSrc: assets.allPrimariesIcon, iconW: 20, iconH: 20 },
+  { key: "democrat", label: "Democratic Party", iconSrc: assets.democraticPartyIcon, iconW: 20, iconH: 17 },
+  { key: "republican", label: "Republican Party", iconSrc: assets.republicanPartyIcon, iconW: 20, iconH: 15 },
+];
 
 interface BallotFiltersProps {
-  activeFilter: FilterKey;
-  onFilterChange: (filter: FilterKey) => void;
+  activeFilters: Set<RaceFilterKey>;
+  onToggleFilter: (filter: RaceFilterKey) => void;
+  partyFilter: PartyFilter;
+  onPartyFilterChange: (filter: PartyFilter) => void;
+  onResetAll: () => void;
 }
 
-export function BallotFilters({ activeFilter, onFilterChange }: BallotFiltersProps) {
+export function BallotFilters({ activeFilters, onToggleFilter, partyFilter, onPartyFilterChange, onResetAll }: BallotFiltersProps) {
   const { viewMode } = useViewMode();
   const isDesktop = viewMode === "desktop";
-  const filters: { key: FilterKey; label: string }[] = [
+  const [desktopDropdownOpen, setDesktopDropdownOpen] = useState(false);
+  const [mobilePhase, setMobilePhase] = useState<"closed" | "entering" | "open" | "leaving">("closed");
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filters: { key: RaceFilterKey; label: string }[] = [
     { key: "senate", label: "Senate" },
     { key: "house", label: "House" },
     { key: "governor", label: "Governor" },
     { key: "lt_governor", label: "Lieutenant Governor" },
   ];
 
+  const activeParty = PARTY_OPTIONS.find((p) => p.key === partyFilter) || PARTY_OPTIONS[0];
+  const isAnyFilterActive = activeFilters.size > 0 || partyFilter !== "all";
+
+  const openMobileSheet = () => {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    setMobilePhase("entering");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setMobilePhase("open"));
+    });
+  };
+
+  const closeMobileSheet = () => {
+    setMobilePhase("leaving");
+    leaveTimerRef.current = setTimeout(() => setMobilePhase("closed"), 250);
+  };
+
+  const handlePartySelect = (key: PartyFilter) => {
+    onPartyFilterChange(key);
+    if (isDesktop) {
+      setDesktopDropdownOpen(false);
+    } else {
+      closeMobileSheet();
+    }
+  };
+
+  const handlePillClick = () => {
+    if (isDesktop) {
+      setDesktopDropdownOpen(!desktopDropdownOpen);
+    } else {
+      openMobileSheet();
+    }
+  };
+
+  const PartyIcon = ({ option, size }: { option: typeof PARTY_OPTIONS[number]; size?: number }) => {
+    const w = size || option.iconW;
+    const h = size ? (size * option.iconH / option.iconW) : option.iconH;
+    return (
+      <span className="shrink-0 flex items-center justify-center" style={{ width: w, height: w }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={option.iconSrc} alt="" style={{ width: w, height: h }} />
+      </span>
+    );
+  };
+
+  const mobileShow = mobilePhase === "open";
+
   return (
-    <div className="flex flex-col gap-3 items-start pl-8 w-full overflow-hidden">
+    <div className={`flex flex-col gap-3 items-start pl-8 w-full ${isDesktop ? "" : "overflow-hidden"}`}>
       <div className="flex items-start justify-between pr-8 w-full">
         <p className={`font-bold leading-5 text-[#403a49] ${isDesktop ? "text-sm" : "text-xs"}`}>
           Filter Ballot
         </p>
         <button
           type="button"
-          onClick={() => onFilterChange("all")}
+          onClick={onResetAll}
           className={`text-xs leading-5 text-right cursor-pointer ${
-            activeFilter === "all"
-              ? "text-[rgba(64,58,73,0.4)]"
-              : "text-[#0d4dfb]"
+            isAnyFilterActive
+              ? "text-[#0d4dfb]"
+              : "text-[rgba(64,58,73,0.4)]"
           }`}
         >
           Reset
         </button>
       </div>
-      <div className="flex gap-3 items-center w-full overflow-x-auto">
-        <div className="bg-white border border-[#e1dde9] flex gap-2 items-center px-4 py-2 rounded-3xl shrink-0">
-          <div className="w-3 h-3 relative shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={assets.layerIcon} alt="" className="w-full h-full" />
-          </div>
-          <p className="text-xs leading-5 text-[#766f81]">All Primaries</p>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#766f81" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+      <div className={`flex gap-3 items-center w-full ${isDesktop ? "" : "overflow-x-auto"}`}>
+        {/* Party primary pill */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={handlePillClick}
+            className={`flex gap-2 items-center px-4 py-2 rounded-3xl shrink-0 cursor-pointer border transition-colors ${
+              partyFilter !== "all"
+                ? "bg-[#cddbff] border-[#a5b9ff]"
+                : "bg-white border-[#e1dde9]"
+            }`}
+          >
+            <PartyIcon option={activeParty} size={isDesktop ? 20 : 16} />
+            <p className={`leading-5 ${isDesktop ? "text-sm" : "text-xs"} ${partyFilter !== "all" ? "text-[#003cd6]" : "text-[#766f81]"}`}>
+              {activeParty.label}
+            </p>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={partyFilter !== "all" ? "#003cd6" : "#766f81"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {/* Desktop: dropdown menu */}
+          {isDesktop && desktopDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-[70]" onClick={() => setDesktopDropdownOpen(false)} />
+              <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-[0px_3px_19px_rgba(58,41,62,0.06),0px_2px_2px_rgba(0,0,0,0.05)] z-[71] min-w-[240px] overflow-hidden">
+                {PARTY_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => handlePartySelect(option.key)}
+                    className="flex gap-2.5 items-center px-8 py-4 w-full cursor-pointer hover:bg-gray-50 border-b border-[#e1dde9] last:border-b-0 transition-colors"
+                  >
+                    <PartyIcon option={option} />
+                    <p className="flex-1 text-base leading-6 text-[#403a49] text-left">{option.label}</p>
+                    {partyFilter === option.key && (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0d4dfb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
+
         <div className="w-px h-[20px] bg-[#e1dde9] shrink-0" />
         <div className="flex gap-1 items-center">
           {filters.map((filter) => {
-            const isActive = activeFilter === filter.key;
+            const isActive = activeFilters.has(filter.key);
             return (
               <button
                 type="button"
                 key={filter.key}
-                onClick={() => onFilterChange(isActive ? "all" : filter.key)}
-                className={`flex items-center px-4 py-2 rounded-3xl shrink-0 cursor-pointer border transition-colors ${
+                onClick={() => onToggleFilter(filter.key)}
+                className={`flex items-center px-4 py-2 rounded-3xl shrink-0 cursor-pointer border transition-colors outline-none ${
                   isActive
-                    ? "bg-[#403a49] border-[#403a49] text-white"
-                    : "bg-white border-[#e1dde9] text-[#766f81]"
+                    ? "bg-[#cddbff] border-[#a5b9ff] text-[#003cd6]"
+                    : "bg-white border-[#e1dde9] text-[#766f81] hover:bg-[#f0f7ff] hover:border-[#4771ff] hover:text-[#003cd6] focus-visible:border-[#4771ff] focus-visible:shadow-[0px_0px_0px_8px_rgba(71,113,255,0.2)]"
                 }`}
               >
-                <p className="text-xs leading-4">{filter.label}</p>
+                <p className={`leading-5 ${isDesktop ? "text-sm" : "text-xs"}`}>{filter.label}</p>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* Mobile: modal bottom sheet — same pattern as AddressSearchModal */}
+      {!isDesktop && mobilePhase !== "closed" && (
+        <div className="fixed inset-0 z-50" aria-hidden={!mobileShow}>
+          {/* Overlay */}
+          <div
+            className={`absolute inset-0 bg-black/40 transition-opacity duration-250 ease-out ${
+              mobileShow ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={closeMobileSheet}
+          />
+          {/* Modal panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filter by Party Primary"
+            className={`absolute left-1/2 -translate-x-1/2 w-[375px] bottom-0 bg-white rounded-t-2xl flex flex-col shadow-[0px_-2px_16px_0px_rgba(0,0,0,0.08)] overflow-hidden transition-all duration-250 ease-out ${
+              mobileShow
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-[40px]"
+            }`}
+            style={{ minHeight: 200 }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-6 shrink-0">
+              <p className="font-bold text-sm leading-5 text-[#403a49]">Filter by Party Primary</p>
+              <button type="button" onClick={closeMobileSheet} className="cursor-pointer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#403a49" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            {/* Options */}
+            <div className="flex flex-col">
+              {PARTY_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => handlePartySelect(option.key)}
+                  className="flex gap-2.5 items-center px-8 h-14 w-full cursor-pointer border-b border-[#e1dde9] transition-colors"
+                >
+                  <PartyIcon option={option} />
+                  <p className="flex-1 text-base leading-6 text-[#403a49] text-left">{option.label}</p>
+                  {partyFilter === option.key && (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0d4dfb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+            {/* Safe-area bottom spacer */}
+            <div className="h-16 shrink-0" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -209,7 +363,7 @@ export interface RaceData {
   roleDescription?: string;
 }
 
-export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compareActiveTitle, onRecommendation, recActiveCandidateName }: { activeFilter: FilterKey; showAddIssues?: boolean; onCompare?: (race: RaceData) => void; compareActiveTitle?: string; onRecommendation?: (data: RecommendationData) => void; recActiveCandidateName?: string }) {
+export function AllRaces({ activeFilters, partyFilter = "all", showAddIssues = false, onCompare, compareActiveTitle, onRecommendation, recActiveCandidateName }: { activeFilters: Set<RaceFilterKey>; partyFilter?: PartyFilter; showAddIssues?: boolean; onCompare?: (race: RaceData) => void; compareActiveTitle?: string; onRecommendation?: (data: RecommendationData) => void; recActiveCandidateName?: string }) {
   const e1 = assets.endorser1;
   const e2 = assets.endorser2;
   const e3 = assets.endorser3;
@@ -225,6 +379,11 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
   const e13 = assets.endorser13;
   const e14 = assets.endorser14;
   const e15 = assets.endorser15;
+  const e16 = assets.endorser16;
+  const e17 = assets.endorser17;
+  const e18 = assets.endorser18;
+  const e19 = assets.endorser19;
+  const e20 = assets.endorser20;
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     federal: true,
@@ -534,7 +693,34 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
         { name: "League of Women Voters FW", avatar: e15 },
       ],
     },
-  }), [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15]);
+    "Leonard Firestone": {
+      candidateName: "Leonard Firestone",
+      raceLabel: "Mayor",
+      quotes: [
+        { name: "FW Restaurant Assoc.", avatar: e16, verified: true, quote: "Leonard Firestone has lived the red-tape nightmare firsthand. His plan to cut permitting wait times from months to weeks will be a game-changer for Fort Worth small businesses." },
+        { name: "Tarrant Taxpayers Union", avatar: e17, verified: true, quote: "Firestone is the only candidate with a concrete plan to freeze property tax rates. Homeowners in Fort Worth deserve a break." },
+      ],
+      allEndorsers: [
+        { name: "FW Restaurant Assoc.", avatar: e16, verified: true },
+        { name: "Tarrant Taxpayers Union", avatar: e17, verified: true },
+        { name: "Texas NFIB Chapter", avatar: e18 },
+      ],
+    },
+    "Patricia Davis": {
+      candidateName: "Patricia Davis",
+      raceLabel: "City Council",
+      quotes: [
+        { name: "Riverside Neighborhood Assoc.", avatar: e19, verified: true, quote: "Patricia Davis has been the backbone of our neighborhood for over two decades. Her tireless advocacy for tree planting and sidewalk repair has made a visible difference block by block." },
+        { name: "Fort Worth Food Cooperative", avatar: e20, verified: true, quote: "Davis's farmers market proposal would bring fresh produce to a food desert. She understands what District 4 families need on their tables." },
+      ],
+      allEndorsers: [
+        { name: "Riverside Neighborhood Assoc.", avatar: e19, verified: true },
+        { name: "Fort Worth Food Cooperative", avatar: e20, verified: true },
+        { name: "Retired Teachers Assoc. FW", avatar: e12 },
+        { name: "East Side Civic League", avatar: e14 },
+      ],
+    },
+  }), [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20]);
 
   const races: RaceData[] = useMemo(
     () => [
@@ -645,7 +831,7 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
             <CandidateCard name="Mattie Parker" photo={assets.mattieParker} party="Nonpartisan" title="Mayor (Incumbent)" description="At 38, the youngest mayor of a major U.S. city, Parker has focused on economic development incentives, expanding the city's trail network, and hiring more first responders." endorsers={[{ image: e5, verified: true }, { image: e7, verified: true }, { image: e13 }]} endorsementText="Recommended by FW Star-Telegram & 5 more" />
             <CandidateCard name="Carlos Flores" photo={assets.carlosFlores} party="Nonpartisan" title="Community Organizer" description="A longtime South Fort Worth resident and housing advocate who leads neighborhood revitalization projects and campaigns on equitable transit access and youth mentorship programs." endorsers={[{ image: e1, verified: true }, { image: e3 }, { image: e11, verified: true }]} endorsementText="Recommended by LULAC Fort Worth & 3 more" />
             <CandidateCard name="Deb Johnson" photo={assets.debJohnson} party="Nonpartisan" title="Retired City Planner" description="A 30-year veteran of Fort Worth's planning department who advocates for walkable neighborhoods, senior-friendly zoning, and preserving historic districts from overdevelopment." endorsers={[{ image: e10 }, { image: e12 }]} endorsementText="Recommended by Preservation FW & 1 more" />
-            <CandidateCard name="Leonard Firestone" photo={assets.leonardFirestone} party="Nonpartisan" title="Restaurant Owner" description="A small business owner running on cutting city red tape, reducing permitting fees, privatizing select city services, and freezing property tax rates for five years." endorsers={[]} endorsementText="" />
+            <CandidateCard name="Leonard Firestone" photo={assets.leonardFirestone} party="Nonpartisan" title="Restaurant Owner" description="A small business owner running on cutting city red tape, reducing permitting fees, privatizing select city services, and freezing property tax rates for five years." endorsers={[{ image: e16, verified: true }, { image: e17 }]} endorsementText="Recommended by FW Restaurant Assoc. & 2 more" />
           </>
         ),
       },
@@ -665,7 +851,7 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
           <>
             <CandidateCard name="Christina Reyes" photo={assets.christinaReyes} party="Nonpartisan" title="Social Worker" description="A bilingual social worker and PTA president who campaigns on expanding code enforcement, building safer crosswalks, and increasing bilingual city services in East Fort Worth." endorsers={[{ image: e3, verified: true }, { image: e11 }]} endorsementText="Recommended by FW Education Assoc. & 2 more" />
             <CandidateCard name="Jared Williams" photo={assets.jaredWilliams} party="Nonpartisan" title="Small Business Owner" description="A barbershop owner and youth basketball coach focused on bringing a new library branch, improving stormwater drainage, and funding after-school programs in underserved areas." endorsers={[{ image: e7, verified: true }]} endorsementText="Recommended by Streams & Valleys Inc." />
-            <CandidateCard name="Patricia Davis" photo={assets.patriciaDavis} party="Nonpartisan" title="Retired Educator" description="A 25-year veteran teacher and neighborhood association leader who advocates for small business grants, tree canopy expansion, and establishing a weekly farmers market." endorsers={[]} endorsementText="" />
+            <CandidateCard name="Patricia Davis" photo={assets.patriciaDavis} party="Nonpartisan" title="Retired Educator" description="A 25-year veteran teacher and neighborhood association leader who advocates for small business grants, tree canopy expansion, and establishing a weekly farmers market." endorsers={[{ image: e19, verified: true }, { image: e20 }]} endorsementText="Recommended by Riverside Neighborhood Assoc. & 3 more" />
           </>
         ),
       },
@@ -675,6 +861,12 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
         filterKey: "all" as FilterKey,
         section: "local",
         type: "board",
+        roleDescription: "A Fort Worth ISD Board of Education Trustee serves on the elected body that governs the school district. They set educational policy, approve the annual budget, hire the superintendent, adopt curriculum standards, and oversee school construction and facilities for over 80,000 students.",
+        comparisonCandidates: [
+          { name: "Natalie Ruiz", photo: assets.natalieRuiz, stance: "Advocates for dual-language programs in every elementary school, increased literacy specialist staffing, and transparent achievement data dashboards for parents." },
+          { name: "Michael Washington", photo: assets.michaelWashington, stance: "Supports expanding mental health counselors to a 250:1 ratio, improving athletic facilities at Title I schools, and creating a student mentorship program with local businesses." },
+          { name: "Andrea Harrison", photo: assets.andreaHarrison, stance: "Pushes for zero-based budgeting, directing more funds to classrooms instead of administration, and expanding STEM and vocational programs across the district." },
+        ],
         candidates: (
           <>
             <div className="flex flex-col pt-2.5 pb-2 relative shrink-0 self-stretch">
@@ -725,8 +917,21 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
           </>
         ),
       },
+      {
+        title: "Proposition C",
+        candidateCount: 2,
+        filterKey: "all" as FilterKey,
+        section: "local",
+        type: "measure",
+        candidates: (
+          <>
+            <MeasureCard position="Yes" title="Fort Worth Fire & Emergency Services Bond ($180M)" description="A yes vote authorizes $180 million in bonds to build three new fire stations, upgrade aging emergency vehicles, and fund a new centralized 911 dispatch center with modern technology." endorsementText="Recommended by FW Firefighters Assoc. & 6 more" endorserImage={e16} />
+            <MeasureCard position="No" title="Fort Worth Fire & Emergency Services Bond ($180M)" description="A no vote opposes additional borrowing, arguing that the city should prioritize efficiency gains and reallocation of existing funds before adding to the debt burden on taxpayers." endorsementText="Recommended by Citizens for Fiscal Responsibility" endorserImage={e17} />
+          </>
+        ),
+      },
     ],
-    [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15]
+    [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20]
   );
 
   const sections: { key: string; label: string; sectionKey: "federal" | "state" | "local" }[] = [
@@ -735,13 +940,43 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
     { key: "local", label: "Local Races", sectionKey: "local" },
   ];
 
+  const matchesParty = (candidateParty: string): boolean => {
+    if (partyFilter === "all") return true;
+    if (candidateParty === "Nonpartisan" || candidateParty === "Independent") return true;
+    if (partyFilter === "democrat") return candidateParty === "Democratic Party";
+    if (partyFilter === "republican") return candidateParty === "Republican Party";
+    return true;
+  };
+
+  const filterCandidateChild = (child: React.ReactNode): React.ReactNode => {
+    if (React.isValidElement(child) && child.type === CandidateCard) {
+      const cardParty = (child.props as { party?: string }).party || "";
+      if (!matchesParty(cardParty)) return null;
+      const cardName = (child.props as { name?: string }).name || "";
+      const recDataItem = recommendationMap[cardName];
+      const extra: Record<string, unknown> = {};
+      if (showAddIssues) extra.showAddIssues = true;
+      if (recDataItem && onRecommendation) extra.onRecommendationClick = () => onRecommendation(recDataItem);
+      if (recActiveCandidateName && cardName === recActiveCandidateName) extra.highlightActive = true;
+      return React.cloneElement(child as React.ReactElement, extra);
+    }
+    if (React.isValidElement(child) && (child.props as Record<string, unknown>)?.children) {
+      const inner = (child.props as { children?: React.ReactNode }).children;
+      const cloned = React.Children.map(inner, (c) => filterCandidateChild(c));
+      const nonNull = cloned?.filter(Boolean);
+      if (!nonNull || nonNull.length === 0) return null;
+      return React.cloneElement(child as React.ReactElement, {}, nonNull);
+    }
+    return child;
+  };
+
   return (
     <div className="flex flex-col gap-6 items-start w-full">
       {sections.map((section) => {
         const sectionRaces = races.filter((r) => {
           if (r.section !== section.sectionKey) return false;
-          if (activeFilter === "all") return true;
-          return r.filterKey === activeFilter || r.filterKey === "all";
+          if (activeFilters.size === 0) return true;
+          return activeFilters.has(r.filterKey as RaceFilterKey);
         });
 
         if (sectionRaces.length === 0) return null;
@@ -760,44 +995,22 @@ export function AllRaces({ activeFilter, showAddIssues = false, onCompare, compa
                 isOpen ? "max-h-[9999px] opacity-100 pb-5" : "max-h-0 opacity-0"
               }`}
             >
-              {sectionRaces.map((race) => (
-                <RaceSection
-                  key={race.title}
-                  title={race.title}
-                  candidateCount={race.candidateCount}
-                  onCompare={race.comparisonCandidates && onCompare ? () => onCompare(race) : undefined}
-                  compareActive={compareActiveTitle === race.title}
-                >
-                  {React.Children.map(race.candidates, (child) => {
-                    if (React.isValidElement(child) && child.type === CandidateCard) {
-                      const cardName = (child.props as { name?: string }).name || "";
-                      const recData = recommendationMap[cardName];
-                      const extra: Record<string, unknown> = {};
-                      if (showAddIssues) extra.showAddIssues = true;
-                      if (recData && onRecommendation) extra.onRecommendationClick = () => onRecommendation(recData);
-                      if (recActiveCandidateName && cardName === recActiveCandidateName) extra.highlightActive = true;
-                      return React.cloneElement(child as React.ReactElement, extra);
-                    }
-                    if (React.isValidElement(child) && (child.props as Record<string, unknown>)?.children) {
-                      const inner = (child.props as { children?: React.ReactNode }).children;
-                      const cloned = React.Children.map(inner, (c) => {
-                        if (React.isValidElement(c) && c.type === CandidateCard) {
-                          const cardName = (c.props as { name?: string }).name || "";
-                          const recData = recommendationMap[cardName];
-                          const extra: Record<string, unknown> = {};
-                          if (showAddIssues) extra.showAddIssues = true;
-                          if (recData && onRecommendation) extra.onRecommendationClick = () => onRecommendation(recData);
-                          if (recActiveCandidateName && cardName === recActiveCandidateName) extra.highlightActive = true;
-                          return React.cloneElement(c as React.ReactElement, extra);
-                        }
-                        return c;
-                      });
-                      return React.cloneElement(child as React.ReactElement, {}, cloned);
-                    }
-                    return child;
-                  })}
-                </RaceSection>
-              ))}
+              {sectionRaces.map((race) => {
+                const filteredChildren = React.Children.map(race.candidates, filterCandidateChild)?.filter(Boolean);
+                if (race.type === "candidate" && partyFilter !== "all" && (!filteredChildren || filteredChildren.length === 0)) return null;
+
+                return (
+                  <RaceSection
+                    key={race.title}
+                    title={race.title}
+                    candidateCount={race.candidateCount}
+                    onCompare={race.comparisonCandidates && onCompare ? () => onCompare(race) : undefined}
+                    compareActive={compareActiveTitle === race.title}
+                  >
+                    {filteredChildren}
+                  </RaceSection>
+                );
+              })}
             </div>
           </div>
         );
@@ -1289,7 +1502,22 @@ type DrawerSource = "address" | "compare" | "recommendation";
 export default function BallotPreview() {
   const { viewMode } = useViewMode();
   const isDesktop = viewMode === "desktop";
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const [activeFilters, setActiveFilters] = useState<Set<RaceFilterKey>>(new Set());
+  const [partyFilter, setPartyFilter] = useState<PartyFilter>("all");
+
+  const toggleFilter = (key: RaceFilterKey) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const resetAllFilters = () => {
+    setActiveFilters(new Set());
+    setPartyFilter("all");
+  };
 
   // Unified drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1376,9 +1604,9 @@ export default function BallotPreview() {
             isDesktop
           />
           <div className="-mt-5 -mb-5 w-full">
-            <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+            <BallotFilters activeFilters={activeFilters} onToggleFilter={toggleFilter} partyFilter={partyFilter} onPartyFilterChange={setPartyFilter} onResetAll={resetAllFilters} />
           </div>
-          <AllRaces activeFilter={activeFilter} onCompare={openCompareDrawer} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
+          <AllRaces activeFilters={activeFilters} partyFilter={partyFilter} onCompare={openCompareDrawer} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
           <AddLocationCTA
             triggerRef={ctaTriggerRef}
             selectedAddress={displayAddress}
@@ -1449,8 +1677,8 @@ export default function BallotPreview() {
         selectedAddress={displayAddress}
         onOpenModal={() => openAddressDrawer(heroTriggerRef)}
       />
-      <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-      <AllRaces activeFilter={activeFilter} onCompare={openCompareDrawer} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
+      <BallotFilters activeFilters={activeFilters} onToggleFilter={toggleFilter} partyFilter={partyFilter} onPartyFilterChange={setPartyFilter} onResetAll={resetAllFilters} />
+      <AllRaces activeFilters={activeFilters} partyFilter={partyFilter} onCompare={openCompareDrawer} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
       <AddLocationCTA
         triggerRef={ctaTriggerRef}
         selectedAddress={displayAddress}

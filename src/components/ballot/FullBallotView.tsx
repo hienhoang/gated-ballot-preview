@@ -6,7 +6,8 @@ import { assets } from "./assets";
 import { useViewMode } from "../ViewModeContext";
 import {
   Logo,
-  FilterKey,
+  RaceFilterKey,
+  PartyFilter,
   BallotFilters,
   AllRaces,
   SourceDisclaimer,
@@ -147,7 +148,12 @@ function DesktopAddLocationCTA() {
 }
 
 export default function FullBallotView({ address }: { address: string }) {
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const [activeFilters, setActiveFilters] = useState<Set<RaceFilterKey>>(new Set());
+  const [partyFilter, setPartyFilter] = useState<PartyFilter>("all");
+  const toggleFilter = (key: RaceFilterKey) => {
+    setActiveFilters((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  };
+  const resetAllFilters = () => { setActiveFilters(new Set()); setPartyFilter("all"); };
   const router = useRouter();
   const { viewMode } = useViewMode();
   const isDesktop = viewMode === "desktop";
@@ -200,8 +206,8 @@ export default function FullBallotView({ address }: { address: string }) {
             drawerOpen ? "max-w-[1800px]" : "max-w-[1280px]"
           }`}>
             <FullBallotHero address={address} isDesktop={isDesktop} />
-            <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-            <AllRaces activeFilter={activeFilter} showAddIssues onCompare={openCompare} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendation} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
+            <BallotFilters activeFilters={activeFilters} onToggleFilter={toggleFilter} partyFilter={partyFilter} onPartyFilterChange={setPartyFilter} onResetAll={resetAllFilters} />
+            <AllRaces activeFilters={activeFilters} partyFilter={partyFilter} showAddIssues onCompare={openCompare} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendation} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
             <DesktopAddLocationCTA />
             <SourceDisclaimer />
             <VoterGuides />
@@ -267,8 +273,8 @@ export default function FullBallotView({ address }: { address: string }) {
     <>
       <div className="bg-white flex flex-col gap-8 items-start w-[375px] mx-auto">
         <FullBallotHero address={address} isDesktop={isDesktop} />
-        <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-        <AllRaces activeFilter={activeFilter} showAddIssues onCompare={openCompare} onRecommendation={openRecommendation} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
+        <BallotFilters activeFilters={activeFilters} onToggleFilter={toggleFilter} partyFilter={partyFilter} onPartyFilterChange={setPartyFilter} onResetAll={resetAllFilters} />
+        <AllRaces activeFilters={activeFilters} partyFilter={partyFilter} showAddIssues onCompare={openCompare} onRecommendation={openRecommendation} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
         <SourceDisclaimer />
         <VoterGuides />
         <ShareCTA />
