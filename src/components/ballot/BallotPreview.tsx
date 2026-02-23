@@ -1459,7 +1459,9 @@ export default function BallotPreview() {
       <SourceDisclaimer />
       <VoterGuides />
       <ShareCTA />
-      <Footer />
+      <div className="-mt-8 w-full">
+        <Footer />
+      </div>
 
       {addressDrawerMounted && (
         <AddressSearchModal
