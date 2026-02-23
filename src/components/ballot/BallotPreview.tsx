@@ -1293,8 +1293,11 @@ export default function BallotPreview() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerSource, setDrawerSource] = useState<DrawerSource>("address");
   const [selectedAddress, setSelectedAddress] = useState("");
+  const [previewAddress, setPreviewAddress] = useState("");
   const [compareRace, setCompareRace] = useState<RaceData | null>(null);
   const [recData, setRecData] = useState<RecommendationData | null>(null);
+
+  const displayAddress = previewAddress || selectedAddress;
 
   const heroTriggerRef = useRef<HTMLButtonElement>(null);
   const ctaTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1323,6 +1326,7 @@ export default function BallotPreview() {
 
   const closeDrawer = () => {
     setDrawerOpen(false);
+    setPreviewAddress("");
   };
 
   React.useEffect(() => {
@@ -1358,7 +1362,7 @@ export default function BallotPreview() {
         <div className="flex-1 min-w-0 bg-white flex flex-col gap-8 items-start overflow-y-auto relative max-w-[1800px] mx-auto">
           <HeroSection
             triggerRef={heroTriggerRef}
-            selectedAddress={selectedAddress}
+            selectedAddress={displayAddress}
             onOpenModal={() => openAddressDrawer(heroTriggerRef)}
             isDesktop
           />
@@ -1366,7 +1370,7 @@ export default function BallotPreview() {
           <AllRaces activeFilter={activeFilter} onCompare={openCompareDrawer} compareActiveTitle={drawerOpen && drawerSource === "compare" && compareRace ? compareRace.title : undefined} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
           <AddLocationCTA
             triggerRef={ctaTriggerRef}
-            selectedAddress={selectedAddress}
+            selectedAddress={displayAddress}
             onOpenModal={() => openAddressDrawer(ctaTriggerRef)}
           />
           <SourceDisclaimer />
@@ -1393,8 +1397,8 @@ export default function BallotPreview() {
               <AddressSearchModal
                 isOpen={drawerOpen && drawerSource === "address"}
                 onClose={closeDrawer}
-                onSelect={(address) => setSelectedAddress(address)}
-                onAddressChange={(address) => setSelectedAddress(address)}
+                onSelect={(address) => { setSelectedAddress(address); setPreviewAddress(""); }}
+                onAddressPreview={setPreviewAddress}
                 triggerRef={activeTriggerRef.current}
                 inline
               />
@@ -1429,14 +1433,14 @@ export default function BallotPreview() {
     <div className="bg-white flex flex-col gap-8 items-start w-[375px] mx-auto">
       <HeroSection
         triggerRef={heroTriggerRef}
-        selectedAddress={selectedAddress}
+        selectedAddress={displayAddress}
         onOpenModal={() => openAddressDrawer(heroTriggerRef)}
       />
       <BallotFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
       <AllRaces activeFilter={activeFilter} onCompare={openCompareDrawer} onRecommendation={openRecommendationDrawer} recActiveCandidateName={drawerOpen && drawerSource === "recommendation" && recData ? recData.candidateName : undefined} />
       <AddLocationCTA
         triggerRef={ctaTriggerRef}
-        selectedAddress={selectedAddress}
+        selectedAddress={displayAddress}
         onOpenModal={() => openAddressDrawer(ctaTriggerRef)}
       />
       <SourceDisclaimer />
@@ -1448,8 +1452,8 @@ export default function BallotPreview() {
         <AddressSearchModal
           isOpen={drawerOpen && drawerSource === "address"}
           onClose={closeDrawer}
-          onSelect={(address) => setSelectedAddress(address)}
-          onAddressChange={(address) => setSelectedAddress(address)}
+          onSelect={(address) => { setSelectedAddress(address); setPreviewAddress(""); }}
+          onAddressPreview={setPreviewAddress}
           triggerRef={activeTriggerRef.current}
         />
       )}

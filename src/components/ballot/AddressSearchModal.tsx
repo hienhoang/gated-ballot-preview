@@ -76,7 +76,7 @@ interface AddressSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (address: string) => void;
-  onAddressChange?: (address: string) => void;
+  onAddressPreview?: (address: string) => void;
   triggerRef: React.RefObject<HTMLElement | null>;
   inline?: boolean;
 }
@@ -98,7 +98,7 @@ function AddressSearchModalInner({
   isOpen,
   onClose,
   onSelect,
-  onAddressChange,
+  onAddressPreview,
   triggerRef,
   inline = false,
 }: AddressSearchModalProps) {
@@ -312,16 +312,16 @@ function AddressSearchModalInner({
           const addr = place.formattedAddress || prediction.text;
           skipAutocompleteRef.current = true;
           setQuery(addr);
-          onAddressChange?.(addr);
+          onAddressPreview?.(addr);
         } else {
           skipAutocompleteRef.current = true;
           setQuery(prediction.text);
-          onAddressChange?.(prediction.text);
+          onAddressPreview?.(prediction.text);
         }
       } catch {
         skipAutocompleteRef.current = true;
         setQuery(prediction.text);
-        onAddressChange?.(prediction.text);
+        onAddressPreview?.(prediction.text);
       }
 
       setPredictions([]);
@@ -332,7 +332,7 @@ function AddressSearchModalInner({
         sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
       }
     },
-    [map, placesLib, onAddressChange]
+    [map, placesLib, onAddressPreview]
   );
 
   const handleMapClick = useCallback(
@@ -352,11 +352,11 @@ function AddressSearchModalInner({
           setQuery(addr);
           setPredictions([]);
           setAddressConfirmed(true);
-          onAddressChange?.(addr);
+          onAddressPreview?.(addr);
         }
       });
     },
-    [map, onAddressChange]
+    [map, onAddressPreview]
   );
 
   // ------- Keyboard navigation -------
@@ -498,7 +498,7 @@ function AddressSearchModalInner({
                     setQuery("");
                     setPredictions([]);
                     setAddressConfirmed(false);
-                    onAddressChange?.("");
+                    onAddressPreview?.("");
                     inputRef.current?.focus();
                   }}
                   className="cursor-pointer rounded"
