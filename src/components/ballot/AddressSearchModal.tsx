@@ -76,6 +76,7 @@ interface AddressSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (address: string) => void;
+  onAddressChange?: (address: string) => void;
   triggerRef: React.RefObject<HTMLElement | null>;
   inline?: boolean;
 }
@@ -97,6 +98,7 @@ function AddressSearchModalInner({
   isOpen,
   onClose,
   onSelect,
+  onAddressChange,
   triggerRef,
   inline = false,
 }: AddressSearchModalProps) {
@@ -310,13 +312,16 @@ function AddressSearchModalInner({
           const addr = place.formattedAddress || prediction.text;
           skipAutocompleteRef.current = true;
           setQuery(addr);
+          onAddressChange?.(addr);
         } else {
           skipAutocompleteRef.current = true;
           setQuery(prediction.text);
+          onAddressChange?.(prediction.text);
         }
       } catch {
         skipAutocompleteRef.current = true;
         setQuery(prediction.text);
+        onAddressChange?.(prediction.text);
       }
 
       setPredictions([]);
@@ -327,7 +332,7 @@ function AddressSearchModalInner({
         sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
       }
     },
-    [map, placesLib]
+    [map, placesLib, onAddressChange]
   );
 
   const handleMapClick = useCallback(
@@ -347,10 +352,11 @@ function AddressSearchModalInner({
           setQuery(addr);
           setPredictions([]);
           setAddressConfirmed(true);
+          onAddressChange?.(addr);
         }
       });
     },
-    [map]
+    [map, onAddressChange]
   );
 
   // ------- Keyboard navigation -------
@@ -492,6 +498,7 @@ function AddressSearchModalInner({
                     setQuery("");
                     setPredictions([]);
                     setAddressConfirmed(false);
+                    onAddressChange?.("");
                     inputRef.current?.focus();
                   }}
                   className="cursor-pointer rounded"

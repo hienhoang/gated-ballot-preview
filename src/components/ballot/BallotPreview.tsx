@@ -1394,6 +1394,7 @@ export default function BallotPreview() {
                 isOpen={drawerOpen && drawerSource === "address"}
                 onClose={closeDrawer}
                 onSelect={(address) => setSelectedAddress(address)}
+                onAddressChange={(address) => setSelectedAddress(address)}
                 triggerRef={activeTriggerRef.current}
                 inline
               />
@@ -1448,6 +1449,7 @@ export default function BallotPreview() {
           isOpen={drawerOpen && drawerSource === "address"}
           onClose={closeDrawer}
           onSelect={(address) => setSelectedAddress(address)}
+          onAddressChange={(address) => setSelectedAddress(address)}
           triggerRef={activeTriggerRef.current}
         />
       )}
