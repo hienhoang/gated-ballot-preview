@@ -251,8 +251,8 @@ export default function RecommendationModal({
         aria-label="Recommendations"
         className={`absolute left-1/2 -translate-x-1/2 w-[375px] bottom-0 bg-white rounded-t-2xl flex flex-col shadow-[0px_-2px_16px_0px_rgba(0,0,0,0.08)] overflow-hidden transition-all duration-250 ease-out ${
           show
-            ? "top-[60px] opacity-100 translate-y-0"
-            : "top-[60px] opacity-0 translate-y-[40px]"
+            ? "top-[80px] opacity-100 translate-y-0"
+            : "top-[80px] opacity-0 translate-y-[40px]"
         }`}
       >
         {/* Fixed header */}
